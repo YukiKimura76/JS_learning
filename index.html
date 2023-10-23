@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGPTからTwitterへの投稿</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="./stylesheet.css">
+</head>
+
+<body>
+    <h1>ChatGPTからTwitterへの投稿</h1>
+    <div>
+        <input type="text" id="question" placeholder="質問を入力してください。">
+
+        <button onclick="fetchGPTResponse()">GPTで回答を取得</button>
+    </div>
+    <div id="load" style="display: none;">
+        <div>G</div>
+        <div>N</div>
+        <div>I</div>
+        <div>D</div>
+        <div>A</div>
+        <div>O</div>
+        <div>L</div>
+    </div>
+    <div id="response"></div>
+    <p id="character-count">0 文字</p>
+    <button onclick="tweetResponse()">この回答をTwitterに投稿</button>
+
+
+    <script>
+        let gptResponse;
+
+        document.addEventListener('keydown', function (event) {
+            if (event.shiftKey && event.key === 'Enter') {
+                console.log('Shift + Enter');
+                fetchGPTResponse();
+            }
+        });
+        function countCharacters() {
+            const responseText = gptResponse || ''; // 回答がnullの場合に備えてデフォルト値を設定
+            const characterCount = responseText.length;
+            document.getElementById('character-count').textContent = `${characterCount} 文字`;
+        }
+        async function fetchGPTResponse() {
+            const maxTweetLength = 140; // ツイッターの文字数制限
+            const questionInput = document.getElementById('question');
+            const question = questionInput.value;
+            const responseDiv = document.getElementById('response');
+            const characterCountP = document.getElementById('character-count');
+            const limitedQuestion = question + ' (　140文字以内で回答してください)';
+            const url = 'https://api.openai.com/v1/chat/completions';
+
+            document.getElementById('load').style.display = 'block';
+
+
+
+            let apiKey;
+            await fetch('./config.json')
+                .then(response => response.json())
+                .then(data => {
+                    apiKey = data.OPENAI_API_KEY;
+                });
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + apiKey
+                },
+                body: JSON.stringify({
+                    'model': 'gpt-3.5-turbo',
+                    'messages': [{ 'role': 'user', 'content': limitedQuestion }]
+                }),
+            });
+
+            const data = await response.json();
+            gptResponse = data.choices[0].message.content;
+
+            document.getElementById('load').style.display = 'none';
+            document.getElementById('response').textContent = gptResponse;
+            questionInput.value = ''; // 質問フィールドを空にする
+            response.content = '';
+            questionInput.addEventListener('input', function () {
+                responseDiv.textContent = ''; // 回答部分をクリア
+                characterCountP.textContent = '0 文字'; // 文字数カウントをクリア
+            });
+
+            // 文字数カウンターを呼び出し
+            countCharacters();
+        }
+
+        function tweetResponse() {
+            const text = encodeURIComponent(gptResponse);
+            window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
+        }
+    </script>
+
+</body>
+
+</html>
